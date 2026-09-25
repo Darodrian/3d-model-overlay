@@ -1,10 +1,6 @@
 # 3D Model Overlay
 
-A transparent full-screen `model-viewer` overlay with a live UI tuner for adjusting model scale, rotation, camera framing and lighting.
-
-## Usage
-
-Open `index.html` in a browser. Use the tuner panel in the top-right corner to adjust the model in real time.
+A transparent full-screen `model-viewer` overlay with a live UI tuner. Press `F` to open the tuner menu.
 
 ## Credits
 
