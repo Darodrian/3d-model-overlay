@@ -159,6 +159,10 @@
       syncAnimUI();
     });
 
+    viewer.addEventListener("error", function () {
+      console.warn("Model failed to load:", lastSrc);
+    });
+
     function fitModel() {
       viewer.cameraOrbit = "0deg 75deg 105%";
       viewer.cameraTarget = "auto auto auto";
@@ -205,14 +209,17 @@
     }
 
     function buildSelect(files) {
+      var sorted = files.slice().sort(function (a, b) {
+        return a.toLowerCase() < b.toLowerCase() ? -1 : 1;
+      });
       modelSel.innerHTML = "";
-      files.forEach(function (file) {
+      sorted.forEach(function (file) {
         var opt = document.createElement("option");
         opt.value = file;
         opt.textContent = labelize(file);
         modelSel.appendChild(opt);
       });
-      var first = files[0];
+      var first = sorted[0];
       if (first) {
         modelSel.value = first;
         lastSrc = "./models/" + first;
@@ -221,30 +228,17 @@
       }
     }
 
-    function discoverModels() {
-      fetch("./models/", { cache: "no-store" })
-        .then(function (res) {
-          if (!res.ok) throw new Error("no listing");
-          return res.text();
-        })
-        .then(function (html) {
-          var re = /href=["']([^"'?#]+?\.glb)["']/gi;
-          var files = [];
-          var m;
-          while ((m = re.exec(html)) !== null) {
-            var name = decodeURIComponent(m[1].split(/[\\/]/).pop());
-            if (name && files.indexOf(name) === -1) files.push(name);
-          }
-          if (!files.length) throw new Error("no glb");
-          files.sort(function (a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
-          buildSelect(files);
-        })
-        .catch(function (err) {
-          console.warn("Model discovery failed:", err);
-        });
-    }
+    var MODELS = [
+      "maria_silent_hill_2.glb",
+      "mumbler_silent_hill_1.glb",
+      "oh_deer_diner_thermos_alan_wake.glb",
+      "pomni.glb",
+      "slice_of_pizza.glb",
+      "spongebob.glb",
+      "spyro.glb"
+    ];
 
-    discoverModels();
+    buildSelect(MODELS);
 
     function applySpeed() {
       var deg = parseInt(speedRange.value, 10);
