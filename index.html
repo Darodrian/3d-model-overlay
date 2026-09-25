@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <title>3D Model</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ui-mod: #ff7b6b;
+      --ui-dim: rgba(244, 241, 234, 0.5);
+    }
+    html, body {
+      position: fixed;
+      inset: 0;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+    }
+    model-viewer {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+    #tuner {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      width: 290px;
+      padding: 12px;
+      background: #14120f;
+      border: 2px solid #54514a;
+      box-shadow: 3px 3px 0 #050505;
+      color: #f4f1ea;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 10px;
+      display: none;
+      user-select: none;
+    }
+    #tuner.show { display: block; }
+    #tuner h1 {
+      margin: 0 0 8px 0;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--ui-mod);
+    }
+    #tuner h1 span { color: var(--ui-dim); font-size: 8px; }
+    #tuner .tuner-row {
+      display: flex;
+      align-items: center;
+      margin: 6px 0;
+      line-height: 1.4;
+    }
+    #tuner .tuner-row label {
+      flex: 1;
+      margin-right: 8px;
+    }
+    #tuner .tuner-row output {
+      min-width: 28px;
+      text-align: right;
+      color: #ffffff;
+    }
+    #tuner button {
+      width: 88px;
+      height: 28px;
+      padding: 0;
+      background: #54514a;
+      border: 2px solid #33312c;
+      box-shadow: 2px 2px 0 #050505;
+      color: #f4f1ea;
+      font-family: inherit;
+      font-size: 10px;
+      cursor: pointer;
+    }
+    #tuner button:active { transform: translate(2px, 2px); box-shadow: none; }
+    #tuner select {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      height: 28px;
+      padding: 0 4px;
+      background: #14120f;
+      border: 2px solid #54514a;
+      color: #f4f1ea;
+      font-family: inherit;
+      font-size: 10px;
+      cursor: pointer;
+    }
+    #tuner input[type="range"] {
+      flex: 1;
+      accent-color: var(--ui-mod);
+    }
+    #tuner-animplay { width: 64px; }
+  </style>
+</head>
+<body>
+  <div id="tuner">
+    <h1>Tuner <span>(F)</span></h1>
+    <div class="tuner-row">
+      <label for="tuner-model">Model</label>
+      <select id="tuner-model"></select>
+    </div>
+    <div class="tuner-row" id="tuner-anim-row" style="display:none;">
+      <label for="tuner-anim">Animation</label>
+      <select id="tuner-anim"></select>
+      <button id="tuner-animplay">Pause</button>
+    </div>
+    <div class="tuner-row">
+      <label for="tuner-rotate">Auto-Rotate</label>
+      <button id="tuner-rotate">Off</button>
+    </div>
+    <div class="tuner-row">
+      <label for="tuner-speed">Rotate Speed</label>
+      <input id="tuner-speed" type="range" min="5" max="150" step="1" value="30">
+      <output id="speed-out">30</output>
+    </div>
+    <div class="tuner-row">
+      <label>Reset</label>
+      <button id="tuner-reset">Reset View</button>
+    </div>
+  </div>
+
+  <model-viewer
+    id="viewer"
+    alt="3D model"
+    background-color="transparent"
+    camera-controls
+    auto-rotate
+    rotation-per-second="30deg"
+    shadow-intensity="0.6"
+    shadow-softness="1"
+    environment-image="neutral"
+    exposure="1"
+  ></model-viewer>
+  <script type="module" src="https://unpkg.com/@google/model-viewer@4.1.0/dist/model-viewer.min.js"></script>
+  <script>
+    var tuner = document.getElementById("tuner");
+    var modelSel = document.getElementById("tuner-model");
+    var animRow = document.getElementById("tuner-anim-row");
+    var animSel = document.getElementById("tuner-anim");
+    var animPlay = document.getElementById("tuner-animplay");
+    var rotateBtn = document.getElementById("tuner-rotate");
+    var speedRange = document.getElementById("tuner-speed");
+    var speedOut = document.getElementById("speed-out");
+    var resetBtn = document.getElementById("tuner-reset");
+    var viewer = document.getElementById("viewer");
+
+    var rotateOn = viewer.hasAttribute("auto-rotate");
+    rotateBtn.textContent = rotateOn ? "On" : "Off";
+
+    var lastSrc = "";
+    viewer.addEventListener("load", function () {
+      syncAnimUI();
+    });
+
+    function fitModel() {
+      viewer.cameraOrbit = "0deg 75deg 105%";
+      viewer.cameraTarget = "auto auto auto";
+    }
+
+    function syncAnimUI() {
+      var names = viewer.availableAnimations || [];
+      if (!names.length) {
+        animRow.style.display = "none";
+        return;
+      }
+      animRow.style.display = "";
+      animSel.innerHTML = "";
+      var empty = document.createElement("option");
+      empty.value = "";
+      empty.textContent = "(Default)";
+      animSel.appendChild(empty);
+      names.forEach(function (n) {
+        var opt = document.createElement("option");
+        opt.value = n;
+        opt.textContent = n;
+        animSel.appendChild(opt);
+      });
+      animSel.value = "";
+      animPlay.disabled = true;
+      animPlay.textContent = "Pause";
+    }
+
+    function returnToDefaultPose() {
+      viewer.removeAttribute("animation-name");
+      viewer.animationName = undefined;
+      viewer.paused = false;
+      window.__resync = (window.__resync || 0) + 1;
+      viewer.src = lastSrc + "#" + window.__resync;
+    }
+
+    function labelize(name) {
+      return name
+        .replace(/\.glb$/i, "")
+        .replace(/[-_]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+    }
+
+    function buildSelect(files) {
+      modelSel.innerHTML = "";
+      files.forEach(function (file) {
+        var opt = document.createElement("option");
+        opt.value = file;
+        opt.textContent = labelize(file);
+        modelSel.appendChild(opt);
+      });
+      var first = files[0];
+      if (first) {
+        modelSel.value = first;
+        lastSrc = "./models/" + first;
+        viewer.src = lastSrc;
+        fitModel();
+      }
+    }
+
+    function discoverModels() {
+      fetch("./models/", { cache: "no-store" })
+        .then(function (res) {
+          if (!res.ok) throw new Error("no listing");
+          return res.text();
+        })
+        .then(function (html) {
+          var re = /href=["']([^"'?#]+?\.glb)["']/gi;
+          var files = [];
+          var m;
+          while ((m = re.exec(html)) !== null) {
+            var name = decodeURIComponent(m[1].split(/[\\/]/).pop());
+            if (name && files.indexOf(name) === -1) files.push(name);
+          }
+          if (!files.length) throw new Error("no glb");
+          files.sort(function (a, b) { return a.toLowerCase() < b.toLowerCase() ? -1 : 1; });
+          buildSelect(files);
+        })
+        .catch(function (err) {
+          console.warn("Model discovery failed:", err);
+        });
+    }
+
+    discoverModels();
+
+    function applySpeed() {
+      var deg = parseInt(speedRange.value, 10);
+      speedOut.textContent = deg;
+      viewer.setAttribute("rotation-per-second", deg + "deg");
+      viewer.rotationPerSecond = deg + "deg";
+      if (rotateOn) {
+        viewer.autoRotate = false;
+        setTimeout(function () {
+          viewer.autoRotate = true;
+        }, 60);
+      }
+    }
+
+    modelSel.addEventListener("change", function () {
+      lastSrc = "./models/" + modelSel.value;
+      viewer.src = lastSrc;
+      fitModel();
+    });
+
+    animSel.addEventListener("change", function () {
+      if (animSel.value) {
+        viewer.animationName = animSel.value;
+        viewer.paused = false;
+        animPlay.disabled = false;
+        animPlay.textContent = "Pause";
+      } else {
+        returnToDefaultPose();
+        animPlay.disabled = true;
+      }
+    });
+
+    animPlay.addEventListener("click", function () {
+      viewer.paused = !viewer.paused;
+      animPlay.textContent = viewer.paused ? "Play" : "Pause";
+    });
+
+    rotateBtn.addEventListener("click", function () {
+      rotateOn = !rotateOn;
+      viewer.autoRotate = rotateOn;
+      rotateBtn.textContent = rotateOn ? "On" : "Off";
+    });
+
+    speedRange.addEventListener("input", applySpeed);
+
+    resetBtn.addEventListener("click", function () {
+      viewer.resetTurntableRotation();
+      fitModel();
+      speedRange.value = 30;
+      applySpeed();
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "f" || e.key === "F") {
+        tuner.classList.toggle("show");
+      }
+    });
+
+    applySpeed();
+  </script>
+</body>
+</html>
