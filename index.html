@@ -188,15 +188,11 @@
       });
       animSel.value = "";
       animPlay.disabled = true;
-      animPlay.textContent = "Pause";
+      animPlay.textContent = viewer.paused ? "Play" : "Pause";
     }
 
     function returnToDefaultPose() {
-      viewer.removeAttribute("animation-name");
       viewer.animationName = undefined;
-      viewer.paused = false;
-      window.__resync = (window.__resync || 0) + 1;
-      viewer.src = lastSrc + "#" + window.__resync;
     }
 
     function labelize(name) {
@@ -267,7 +263,7 @@
     animSel.addEventListener("change", function () {
       if (animSel.value) {
         viewer.animationName = animSel.value;
-        viewer.paused = false;
+        viewer.play();
         animPlay.disabled = false;
         animPlay.textContent = "Pause";
       } else {
@@ -277,7 +273,11 @@
     });
 
     animPlay.addEventListener("click", function () {
-      viewer.paused = !viewer.paused;
+      if (viewer.paused) {
+        viewer.play();
+      } else {
+        viewer.pause();
+      }
       animPlay.textContent = viewer.paused ? "Play" : "Pause";
     });
 
