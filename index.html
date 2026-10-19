@@ -188,7 +188,24 @@
     var resetBtn = document.getElementById("tuner-reset");
     var viewer = document.getElementById("viewer");
 
-    var rotateOn = viewer.hasAttribute("auto-rotate");
+    var SETTINGS_KEY = "3d-model-overlay.settings";
+    var settings = (function () {
+      var defaults = { model: "", rotate: null, speed: 30 };
+      var stored = {};
+      try { stored = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch (err) { stored = {}; }
+      Object.keys(defaults).forEach(function (key) {
+        if (stored[key] !== undefined && stored[key] !== null) defaults[key] = stored[key];
+      });
+      return defaults;
+    })();
+
+    function persist() {
+      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (err) {}
+    }
+
+    var rotateOn = typeof settings.rotate === "boolean"
+      ? settings.rotate
+      : viewer.hasAttribute("auto-rotate");
     rotateBtn.textContent = rotateOn ? "On" : "Off";
 
     var lastSrc = "";
@@ -241,12 +258,20 @@
         .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
     }
 
-    function buildList(files) {
+    function selectModel(file) {
+      settings.model = file;
+      persist();
+      lastSrc = "./models/" + file;
+      viewer.src = lastSrc;
+      fitModel();
+    }
+
+    function buildList(files, preferred) {
       var sorted = files.slice().sort(function (a, b) {
         return a.toLowerCase() < b.toLowerCase() ? -1 : 1;
       });
       modelList.innerHTML = "";
-      var firstBtn = null;
+      var buttons = [];
       sorted.forEach(function (file) {
         var btn = document.createElement("button");
         btn.type = "button";
@@ -257,18 +282,18 @@
             b.classList.remove("selected");
           });
           btn.classList.add("selected");
-          lastSrc = "./models/" + file;
-          viewer.src = lastSrc;
-          fitModel();
+          selectModel(file);
         });
         modelList.appendChild(btn);
-        if (!firstBtn) firstBtn = btn;
+        buttons.push({ btn: btn, value: file });
       });
-      if (firstBtn) {
-        firstBtn.classList.add("selected");
-        lastSrc = "./models/" + sorted[0];
-        viewer.src = lastSrc;
-        fitModel();
+      var pick = 0;
+      for (var i = 0; i < buttons.length; i++) {
+        if (buttons[i].value === preferred) { pick = i; break; }
+      }
+      if (buttons.length) {
+        buttons[pick].btn.classList.add("selected");
+        selectModel(buttons[pick].value);
       }
     }
 
@@ -290,7 +315,7 @@
       "spyro.glb"
     ];
 
-    buildList(MODELS);
+    buildList(MODELS, settings.model);
 
     function applySpeed() {
       var deg = parseInt(speedRange.value, 10);
@@ -330,15 +355,19 @@
       rotateOn = !rotateOn;
       viewer.autoRotate = rotateOn;
       rotateBtn.textContent = rotateOn ? "On" : "Off";
+      settings.rotate = rotateOn;
+      persist();
     });
 
-    speedRange.addEventListener("input", applySpeed);
+    speedRange.addEventListener("input", function () {
+      applySpeed();
+      settings.speed = parseInt(speedRange.value, 10);
+      persist();
+    });
 
     resetBtn.addEventListener("click", function () {
       viewer.resetTurntableRotation();
       fitModel();
-      speedRange.value = 30;
-      applySpeed();
     });
 
     document.addEventListener("keydown", function (e) {
@@ -347,6 +376,12 @@
       }
     });
 
+    var startSpeed = parseInt(settings.speed, 10);
+    if (!(startSpeed >= 5 && startSpeed <= 150)) startSpeed = 30;
+    settings.speed = startSpeed;
+    speedRange.value = startSpeed;
+    if (rotateOn) viewer.setAttribute("auto-rotate", "");
+    else viewer.removeAttribute("auto-rotate");
     applySpeed();
   </script>
 </body>
