@@ -77,6 +77,43 @@
       cursor: pointer;
     }
     #tuner button:active { transform: translate(2px, 2px); box-shadow: none; }
+    #tuner-models {
+      margin: 4px 0 8px 0;
+      max-height: 190px;
+      overflow-y: auto;
+      background: #14120f;
+      border: 2px solid #54514a;
+      scrollbar-width: thin;
+      scrollbar-color: #54514a #14120f;
+    }
+    #tuner-models::-webkit-scrollbar { width: 10px; }
+    #tuner-models::-webkit-scrollbar-track { background: #14120f; }
+    #tuner-models::-webkit-scrollbar-thumb {
+      background: #54514a;
+      border: 2px solid #14120f;
+    }
+    #tuner-models button {
+      display: block;
+      width: 100%;
+      height: 26px;
+      padding: 0 6px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: left;
+      line-height: 22px;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      color: var(--ui-dim);
+    }
+    #tuner-models button + button { border-top: 2px solid #232019; }
+    #tuner-models button:hover { background: #232019; color: #f4f1ea; }
+    #tuner-models button:active { transform: none; background: #2e2a22; }
+    #tuner-models button.selected {
+      background: #54514a;
+      color: var(--ui-mod);
+    }
     #tuner select {
       flex: 1;
       min-width: 0;
@@ -103,9 +140,9 @@
   <div id="tuner">
     <h1>Tuner <span>(F)</span></h1>
     <div class="tuner-row">
-      <label for="tuner-model">Model</label>
-      <select id="tuner-model"></select>
+      <label>Model</label>
     </div>
+    <div id="tuner-models" role="listbox" aria-label="Model"></div>
     <div class="tuner-row" id="tuner-anim-row" style="display:none;">
       <label for="tuner-anim">Animation</label>
       <select id="tuner-anim"></select>
@@ -141,7 +178,7 @@
   <script type="module" src="https://unpkg.com/@google/model-viewer@4.1.0/dist/model-viewer.min.js"></script>
   <script>
     var tuner = document.getElementById("tuner");
-    var modelSel = document.getElementById("tuner-model");
+    var modelList = document.getElementById("tuner-models");
     var animRow = document.getElementById("tuner-anim-row");
     var animSel = document.getElementById("tuner-anim");
     var animPlay = document.getElementById("tuner-animplay");
@@ -204,21 +241,32 @@
         .replace(/\b\w/g, function (c) { return c.toUpperCase(); });
     }
 
-    function buildSelect(files) {
+    function buildList(files) {
       var sorted = files.slice().sort(function (a, b) {
         return a.toLowerCase() < b.toLowerCase() ? -1 : 1;
       });
-      modelSel.innerHTML = "";
+      modelList.innerHTML = "";
+      var firstBtn = null;
       sorted.forEach(function (file) {
-        var opt = document.createElement("option");
-        opt.value = file;
-        opt.textContent = labelize(file);
-        modelSel.appendChild(opt);
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = labelize(file);
+        btn.addEventListener("click", function () {
+          if (btn.classList.contains("selected")) return;
+          modelList.querySelectorAll("button").forEach(function (b) {
+            b.classList.remove("selected");
+          });
+          btn.classList.add("selected");
+          lastSrc = "./models/" + file;
+          viewer.src = lastSrc;
+          fitModel();
+        });
+        modelList.appendChild(btn);
+        if (!firstBtn) firstBtn = btn;
       });
-      var first = sorted[0];
-      if (first) {
-        modelSel.value = first;
-        lastSrc = "./models/" + first;
+      if (firstBtn) {
+        firstBtn.classList.add("selected");
+        lastSrc = "./models/" + sorted[0];
         viewer.src = lastSrc;
         fitModel();
       }
@@ -242,7 +290,7 @@
       "spyro.glb"
     ];
 
-    buildSelect(MODELS);
+    buildList(MODELS);
 
     function applySpeed() {
       var deg = parseInt(speedRange.value, 10);
@@ -256,12 +304,6 @@
         }, 60);
       }
     }
-
-    modelSel.addEventListener("change", function () {
-      lastSrc = "./models/" + modelSel.value;
-      viewer.src = lastSrc;
-      fitModel();
-    });
 
     animSel.addEventListener("change", function () {
       if (animSel.value) {
